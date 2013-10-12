@@ -57,40 +57,48 @@ class PyTST(object):
 
     def traverse(self):
         '''
-        return an iterator of obj_list
+        @return an iterator of obj_list
         '''
         if self.root == None:
-            yield []
+            yield None
         else:
             for node in self.__traverse(self.root):
                 yield node.obj_list
     
     def search(self, key):
         '''
-        return the obj_list
+        @return the obj_list
         '''
         if len(key) == 0:
-            return []
+            return None
 
         node = self.__search(self.root, key)
         if node == None:
-            return []
+            return None
         else:
             return node.obj_list
 
     def prefix_search(self, prefix):
         '''
-        return an iterator
+        @return an iterator of obj_list
         '''
-        pass
+        sub_root = self.__search(self.root, prefix)
+        if sub_root == None:
+            yield None
+        else:
+            if len(sub_root.obj_list) > 0:
+                yield sub_root.obj_list
+            for node in self.__traverse(sub_root.mid):
+                yield node.obj_list
+
     def wildcard_search(self, key):
         '''
-        return an iterator
+        @return an iterator
         '''
         pass
     def near_search(self, key):
         '''
-        return an iterator
+        @return an iterator
         '''
         pass
 
@@ -197,19 +205,25 @@ def large_data_test():
 def small_data_test():
     tst = PyTST()
     # build tree
+    print('==== build tree ====')
     tst.insert('abcd', 1)
     tst.insert('aa', 2)
     tst.insert('abdd', 3)
 
     # search
+    print('==== search ====')
     print('aa: {0}'.format(tst.search('aa')))
     print('ax: {0}'.format(tst.search('ax')))
 
-
     # traverse
+    print('==== traverse ====')
     for obj_list in tst.traverse():
         print obj_list
     
+    # prefix search
+    print('==== prefix search ====')
+    for obj_list in tst.prefix_search('ab'):
+        print obj_list
 
 def main():
     # import pdb; pdb.set_trace()
