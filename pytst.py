@@ -57,45 +57,51 @@ class PyTST(object):
 
     def traverse(self):
         '''
-        @return an iterator of obj_list
+        @return an iterator of all nodes
         '''
         if self.root == None:
             yield None
         else:
             for node in self.__traverse(self.root):
-                yield node.obj_list
+                yield node
     
     def search(self, key):
         '''
-        @return the obj_list
+        @return the matched node
         '''
         if len(key) == 0:
             return None
 
-        node = self.__search(self.root, key)
-        if node == None:
-            return None
-        else:
-            return node.obj_list
+        return self.__search(self.root, key)
 
     def prefix_search(self, prefix):
         '''
-        @return an iterator of obj_list
+        @return an iterator of the matched nodes
         '''
         sub_root = self.__search(self.root, prefix)
         if sub_root == None:
             yield None
         else:
             if len(sub_root.obj_list) > 0:
-                yield sub_root.obj_list
+                yield sub_root
             for node in self.__traverse(sub_root.mid):
-                yield node.obj_list
+                yield node
 
     def wildcard_search(self, key):
         '''
-        @return an iterator
+        wildcard '*' zero or more
+        TODO remove continous *
+        @return an iterator of obj_list
         '''
-        pass
+        if len(key) == 0:
+            yield None
+        elif self.root == None:
+            yield None
+        else:
+            for node in self.__wildcard_search(self.root, key):
+                if node != None:
+                    yield node.obj_list
+
     def near_search(self, key):
         '''
         @return an iterator
@@ -172,13 +178,56 @@ class PyTST(object):
                 node = node.right
             else:
                 if len(key) == 1:
-                    return node
+                    if len(node.obj_list) > 0:
+                        return node
+                    else:
+                        return None
                 else:
                     logger.debug('search mid')
                     node = node.mid
                     key = key[1:]
         return None
 
+    def __wildcard_search(self, root, key):
+        '''
+        wildcard '*' one and many any char
+        '''
+        # # '*a' matches current node
+        # if len(root.obj_list) > 0 and len(key) == 2 and key[0] == '*' and key[1] == root.splitchar:
+        #     yield root
+        print(root)
+        print(key)
+        if len(key) == 1:
+            if key == root.splitchar:
+                yield root
+            else:
+                yield None
+        else:
+            if root.left != None:
+                if key[0] == '*' or key[0] < root.splitchar:
+                    for node in self.__wildcard_search(root.left, key):
+                            yield node
+            if root.right != None:
+                if key[0] == '*' or key[0] > root.splitchar:
+                    for node in self.__wildcard_search(root.right, key):
+                        yield node
+            if root.mid != None:
+                if key[0] == '*':
+                    for node in self.__wildcard_search(root.mid, key):
+                        yield node
+                    for node in self.__wildcard_search(root.mid, key[1:]):
+                        yield node
+                elif key[0] == root.splitchar:
+                    for node in self.__wildcard_search(root.mid, key[1:]):
+                        yield node
+                else:
+                    yield None
+            else:
+                if len(key) == 1 and key[0] == '*':
+                    yield root
+                else:
+                    yield None
+            
 
 def large_data_test():
     tst = PyTST()
@@ -196,34 +245,54 @@ def large_data_test():
     # z's = 25477
     # abase = 13
     # bellman = 2267
-    print(tst.search('TV'))
-    print(tst.search("z's"))
-    print(tst.search('abase'))
-    print(tst.search('bellman'))
+    print(tst.search('TV').obj_list)
+    print(tst.search("z's").obj_list)
+    print(tst.search('abase').obj_list)
+    print(tst.search('bellman').obj_list)
 
 
 def small_data_test():
     tst = PyTST()
     # build tree
     print('==== build tree ====')
-    tst.insert('abcd', 1)
-    tst.insert('aa', 2)
-    tst.insert('abdd', 3)
+    tst.insert('a', 1)
+    tst.insert('ab', 2)
+    tst.insert('abab', 3)
+    tst.insert('cab', 4)
+    tst.insert('ca', 5)
+    tst.insert('aa', 6)
+
 
     # search
     print('==== search ====')
-    print('aa: {0}'.format(tst.search('aa')))
-    print('ax: {0}'.format(tst.search('ax')))
+    print('aa: [6]')
+    print tst.search('aa')
+    print('ac: None')
+    print tst.search('ac')
 
     # traverse
     print('==== traverse ====')
-    for obj_list in tst.traverse():
-        print obj_list
+    for node in tst.traverse():
+        print node
     
     # prefix search
     print('==== prefix search ====')
-    for obj_list in tst.prefix_search('ab'):
-        print obj_list
+    print('ab: [2][3]')
+    for node in tst.prefix_search('ab'):
+        print node
+
+    # wildcard search
+    print('==== wildcard search ====')
+    print('*a: [1][5][6]')
+    # import pdb; pdb.set_trace()
+    for node in tst.wildcard_search('*a'):
+        print node
+    # print('a*: [2][3][1]')
+    # for obj_list in tst.wildcard_search('a*'):
+    #     print obj_list
+    # print ('*bd*: [3][4]')
+    # for obj_list in tst.wildcard_search('*bd*'):
+    #     print obj_list
 
 def main():
     # import pdb; pdb.set_trace()
