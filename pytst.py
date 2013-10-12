@@ -62,34 +62,21 @@ class PyTST(object):
         if self.root == None:
             yield []
         else:
-            for obj_list in self.__traverse(self.root):
-                yield obj_list
+            for node in self.__traverse(self.root):
+                yield node.obj_list
     
     def search(self, key):
         '''
         return the obj_list
         '''
         if len(key) == 0:
-            return None
+            return []
 
-        node = self.root
-        while node != None:
-            logger.debug('search key: {0}'.format(key))
-            logger.debug('search node: {0}'.format(node))
-            if key[0] < node.splitchar:
-                logger.debug('search left')
-                node = node.left
-            elif key[0] > node.splitchar:
-                logger.debug('search right')
-                node = node.right
-            else:
-                if len(key) == 1:
-                    return node.obj_list
-                else:
-                    logger.debug('search mid')
-                    node = node.mid
-                    key = key[1:]
-        return None
+        node = self.__search(self.root, key)
+        if node == None:
+            return []
+        else:
+            return node.obj_list
 
     def prefix_search(self, prefix):
         '''
@@ -146,17 +133,44 @@ class PyTST(object):
                 # return self.__insert(root.mid, key[1:], obj)
 
     def __traverse(self, root):
+        '''
+        return an iterator of all nodes
+        '''
         if root.left != None:
-            for obj_list in self.__traverse(root.left):
-                yield obj_list
+            for node in self.__traverse(root.left):
+                yield node
         if root.right != None:
-            for obj_list in self.__traverse(root.right):
-                yield obj_list
+            for node in self.__traverse(root.right):
+                yield node
         if root.mid != None:
-            for obj_list in self.__traverse(root.mid):
-                yield obj_list
+            for node in self.__traverse(root.mid):
+                yield node
         if len(root.obj_list) > 0:
-            yield root.obj_list
+            yield root
+
+    def __search(self, root, key):
+        '''
+        return the node
+        '''
+        node = root
+        while node != None:
+            logger.debug('search key: {0}'.format(key))
+            logger.debug('search node: {0}'.format(node))
+            if key[0] < node.splitchar:
+                logger.debug('search left')
+                node = node.left
+            elif key[0] > node.splitchar:
+                logger.debug('search right')
+                node = node.right
+            else:
+                if len(key) == 1:
+                    return node
+                else:
+                    logger.debug('search mid')
+                    node = node.mid
+                    key = key[1:]
+        return None
+
 
 def large_data_test():
     tst = PyTST()
@@ -188,8 +202,9 @@ def small_data_test():
     tst.insert('abdd', 3)
 
     # search
-    obj_list = tst.search('aa')
-    print('aa: {0}'.format(obj_list))
+    print('aa: {0}'.format(tst.search('aa')))
+    print('ax: {0}'.format(tst.search('ax')))
+
 
     # traverse
     for obj_list in tst.traverse():
