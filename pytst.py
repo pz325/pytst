@@ -12,11 +12,15 @@ class TSTNode(object):
         self.right = right
         self.mid = mid
         self.obj_list = []
+        self.key = ''
         if obj != None:
             self.obj_list.add(obj)
     
     def add(self, obj):
         self.obj_list.append(obj)
+
+    def set_key(self, key):
+        self.key = key
 
     def __str__(self):
         ret = '=======\n'
@@ -34,6 +38,7 @@ class TSTNode(object):
         else:
             ret += 'mid: Node({0})\n'.format(self.mid.splitchar)
         ret += 'obj_list: {0}\n'.format(self.obj_list)
+        ret += 'key: {0}\n'.format(self.key)
         return ret
 
 class PyTST(object):
@@ -44,12 +49,14 @@ class PyTST(object):
         '''
         self.root = None
         self.num_nodes = 0
+        self.ref_key = ''
 
     def insert(self, key, obj):
         '''
         '''
         if len(key) == 0:
             return 0
+        self.ref_key = key
         if self.root == None:
             self.root = TSTNode(key[0])
             self.num_nodes += 1
@@ -71,21 +78,41 @@ class PyTST(object):
         '''
         if len(key) == 0:
             return None
-
+        self.ref_key = key
         return self.__search(self.root, key)
 
     def prefix_search(self, prefix):
         '''
         @return an iterator of the matched nodes
         '''
-        sub_root = self.__search(self.root, prefix)
-        if sub_root == None:
+        if len(prefix) == 0:
+            yield None
+        elif self.root == None:
             yield None
         else:
-            if len(sub_root.obj_list) > 0:
-                yield sub_root
-            for node in self.__traverse(sub_root.mid):
-                yield node
+            self.ref_key = prefix
+            sub_root = self.__search(self.root, prefix)
+            if sub_root == None:
+                yield None
+            else:
+                if len(sub_root.obj_list) > 0:
+                    yield sub_root
+                for node in self.__traverse(sub_root.mid):
+                    yield node
+
+    def suffix_search(self, suffix):
+        '''
+        @return an iterator of the matched nodes
+        '''
+        if len(suffix) == 0:
+            yield None
+        elif self.root == None:
+            yield None
+        else:
+            self.ref_key = suffix
+            for node in self.__suffix_search(self.root, suffix):
+                if node != None:
+                    yield node
 
     def wildcard_search(self, key):
         '''
@@ -93,14 +120,17 @@ class PyTST(object):
         TODO remove continous *
         @return an iterator of obj_list
         '''
-        if len(key) == 0:
+        if len(key) == 0: 
             yield None
-        elif self.root == None:
+        elif self.root == None: 
             yield None
+        elif key == '*':
+            for node in self.traverse():
+                yield node
         else:
             for node in self.__wildcard_search(self.root, key):
-                if node != None:
-                    yield node.obj_list
+                if node != None: 
+                    yield node
 
     def near_search(self, key):
         '''
@@ -129,6 +159,7 @@ class PyTST(object):
             if len(key) == 1:
                 logger.debug('reach key end')
                 root.add(obj)
+                root.set_key(self.ref_key)
                 logger.debug(root)
                 return 0
             else:
@@ -141,10 +172,11 @@ class PyTST(object):
                         root = root.mid
                         key = key[1:]
                     root.add(obj)
+                    root.set_key(self.ref_key)
+                    logger.debug(root)
                     return 0
                 else:
                     return self.__insert(root.mid, key[1:], obj)
-                # return self.__insert(root.mid, key[1:], obj)
 
     def __traverse(self, root):
         '''
@@ -195,14 +227,30 @@ class PyTST(object):
         # # '*a' matches current node
         # if len(root.obj_list) > 0 and len(key) == 2 and key[0] == '*' and key[1] == root.splitchar:
         #     yield root
-        print(root)
-        print(key)
-        if len(key) == 1:
-            if key == root.splitchar:
+        # print(root)
+        # print(key)
+
+        # process wildcard as prefix
+        if len(key) > 1 and key[0] == '*':
+            for node in self.__wildcard_search(root, key[1:]):
+                yield node
+
+        if len(key) == 1 and key[0] != '*':
+            if key == root.splitchar and len(root.obj_list) > 0:
+                # print('    ===== yield ====')
+                # print root
+                # print key
+                # print('    ================')
                 yield root
             else:
                 yield None
         else:
+            if len(key) == 1 and key[0] == '*' and len(root.obj_list) > 0:
+                    # print('    ===== yield ====')
+                    # print root
+                    # print key
+                    # print('    ================')
+                    yield root
             if root.left != None:
                 if key[0] == '*' or key[0] < root.splitchar:
                     for node in self.__wildcard_search(root.left, key):
@@ -215,19 +263,44 @@ class PyTST(object):
                 if key[0] == '*':
                     for node in self.__wildcard_search(root.mid, key):
                         yield node
-                    for node in self.__wildcard_search(root.mid, key[1:]):
-                        yield node
                 elif key[0] == root.splitchar:
                     for node in self.__wildcard_search(root.mid, key[1:]):
                         yield node
                 else:
                     yield None
+    
+    def __suffix_search(self, root, key):
+        '''
+        '''
+        # further search three branch for whole key
+        if root.left != None:
+            for node in self.__suffix_search(root.left, key):
+                yield node
+        if root.right != None:
+            for node in self.__suffix_search(root.right, key):
+                yield node
+        if root.mid != None:
+            for node in self.__suffix_search(root.mid, key):
+                yield node
+        # search whole key from root
+        node = root
+        whole_key = key
+        ret = None
+        n = 0
+        while node != None:
+            if whole_key[0] < node.splitchar:
+                node = node.left
+            elif whole_key[0] > node.splitchar:
+                node = node.right
             else:
-                if len(key) == 1 and key[0] == '*':
-                    yield root
+                if len(whole_key) == 1:
+                    if len(node.obj_list) > 0:
+                        ret = node
+                    break
                 else:
-                    yield None
-            
+                    node = node.mid
+                    whole_key = whole_key[1:]
+        yield ret
 
 def large_data_test():
     tst = PyTST()
@@ -251,54 +324,85 @@ def large_data_test():
     print(tst.search('bellman').obj_list)
 
 
-def small_data_test():
-    tst = PyTST()
-    # build tree
-    print('==== build tree ====')
-    tst.insert('a', 1)
-    tst.insert('ab', 2)
-    tst.insert('abab', 3)
-    tst.insert('cab', 4)
-    tst.insert('ca', 5)
-    tst.insert('aa', 6)
+import unittest
+class TestPyTST(unittest.TestCase):
+    def setUp(self):
+        self.tst = PyTST()
+        # build tree
+        self.tst.insert('a', 1)
+        self.tst.insert('ab', 2)
+        self.tst.insert('abab', 3)
+        self.tst.insert('cab', 4)
+        self.tst.insert('ca', 5)
+        self.tst.insert('aa', 6)
 
+    def test_search(self):
+        node = self.tst.search('a')
+        self.assertEqual(1, node.obj_list[0])
+        self.assertEqual('a', node.key)
+        node = self.tst.search('ab')
+        self.assertEqual(2, node.obj_list[0])
+        self.assertEqual('ab', node.key)
+        node = self.tst.search('abab')
+        self.assertEqual(3, node.obj_list[0])
+        self.assertEqual('abab', node.key)
+        node = self.tst.search('cab')
+        self.assertEqual(4, node.obj_list[0])
+        self.assertEqual('cab', node.key)
+        node = self.tst.search('ca')
+        self.assertEqual(5, node.obj_list[0])
+        self.assertEqual('ca', node.key)
+        node = self.tst.search('aa')
+        self.assertEqual(6, node.obj_list[0])
+        self.assertEqual('aa', node.key)
+        node = self.tst.search('ax')
+        self.assertEqual(None, node)
 
-    # search
-    print('==== search ====')
-    print('aa: [6]')
-    print tst.search('aa')
-    print('ac: None')
-    print tst.search('ac')
+    def test_traverse(self):
+        nodes = list(self.tst.traverse())
+        self.assertEqual(6, len(nodes))
 
-    # traverse
-    print('==== traverse ====')
-    for node in tst.traverse():
-        print node
-    
-    # prefix search
-    print('==== prefix search ====')
-    print('ab: [2][3]')
-    for node in tst.prefix_search('ab'):
-        print node
+    def test_prefix_search(self):
+        # 'ab'
+        nodes = list(self.tst.prefix_search('ab'))
+        obj_list = [node.obj_list for node in nodes]
+        results = [[2], [3]]
+        self.assertEqual(2, len(nodes))
+        for element in results:
+            self.assert_(element in obj_list)
 
-    # wildcard search
-    print('==== wildcard search ====')
-    print('*a: [1][5][6]')
-    # import pdb; pdb.set_trace()
-    for node in tst.wildcard_search('*a'):
-        print node
-    # print('a*: [2][3][1]')
-    # for obj_list in tst.wildcard_search('a*'):
-    #     print obj_list
-    # print ('*bd*: [3][4]')
-    # for obj_list in tst.wildcard_search('*bd*'):
-    #     print obj_list
+        # 'a'
+        nodes = list(self.tst.prefix_search('a'))
+        obj_list = [node.obj_list for node in nodes]
+        results = [[1], [2], [3], [6]]
+        self.assertEqual(4, len(nodes))
+        for element in results:
+            self.assert_(element in obj_list)
+
+    def test_suffix_search(self):
+        # 'ab'
+        # import pdb; pdb.set_trace()
+        nodes = list(self.tst.suffix_search('ab'))
+        obj_list = [node.obj_list for node in nodes]
+        results = [[2], [3], [4]]
+        self.assertEqual(3, len(nodes))
+        for element in results:
+            self.assert_(element in obj_list)
+
+        # 'a'
+        nodes = list(self.tst.suffix_search('a'))
+        for node in nodes:
+            print node
+        obj_list = [node.obj_list for node in nodes]
+        results = [[1], [5], [6]]
+        self.assertEqual(3, len(nodes))
+        for element in results:
+            self.assert_(element in obj_list)
+
 
 def main():
     # import pdb; pdb.set_trace()
-    small_data_test()
-
-    
+    pass
 
 if __name__ == '__main__':
-    main()
+     unittest.main()
