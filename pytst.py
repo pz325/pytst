@@ -118,21 +118,36 @@ class PyTST(object):
 
     def wildcard_search(self, key):
         '''
-        wildcard '*' zero or more
-        TODO remove continous *
-        @return an iterator of obj_list
+        support four wildcard pattern:
+            * -- return traverse results
+            *abcd -- return suffix search results
+            abcd* -- return prefix search results
+            *abcd* -- combine prefix and suffix search results
+        wildcard '*' means zero or more
+        @return an iterator of matched nodes
         '''
         if len(key) == 0: 
             yield None
         elif self.root == None: 
             yield None
         elif key == '*':
+            # * -- return traverse results
             for node in self.traverse():
                 yield node
+        elif key[0] == '*' and '*' not in key[1:]:
+            # *abcd -- return suffix search results
+            for node in self.suffix_search(key[1:]):
+                yield node
+        elif key[-1] == '*' and '*' not in key[0:len(key)-1]:
+            # abcd* -- return prefix search results
+            for node in self.prefix_search(key[0:len(key)-1]):
+                yield node
+        elif key[0] == '*' and key[-1] == '*' and '*' not in key[1:len(key)-1]:
+            # *abcd* -- combine prefix and suffix search results
+            # TODO
+            yield None
         else:
-            for node in self.__wildcard_search(self.root, key):
-                if node != None: 
-                    yield node
+            yield None
 
     def near_search(self, key):
         '''
@@ -221,55 +236,6 @@ class PyTST(object):
                     node = node.mid
                     key = key[1:]
         return None
-
-    def __wildcard_search(self, root, key):
-        '''
-        wildcard '*' one and many any char
-        '''
-        # # '*a' matches current node
-        # if len(root.obj_list) > 0 and len(key) == 2 and key[0] == '*' and key[1] == root.splitchar:
-        #     yield root
-        # print(root)
-        # print(key)
-
-        # process wildcard as prefix
-        if len(key) > 1 and key[0] == '*':
-            for node in self.__wildcard_search(root, key[1:]):
-                yield node
-
-        if len(key) == 1 and key[0] != '*':
-            if key == root.splitchar and len(root.obj_list) > 0:
-                # print('    ===== yield ====')
-                # print root
-                # print key
-                # print('    ================')
-                yield root
-            else:
-                yield None
-        else:
-            if len(key) == 1 and key[0] == '*' and len(root.obj_list) > 0:
-                    # print('    ===== yield ====')
-                    # print root
-                    # print key
-                    # print('    ================')
-                    yield root
-            if root.left != None:
-                if key[0] == '*' or key[0] < root.splitchar:
-                    for node in self.__wildcard_search(root.left, key):
-                            yield node
-            if root.right != None:
-                if key[0] == '*' or key[0] > root.splitchar:
-                    for node in self.__wildcard_search(root.right, key):
-                        yield node
-            if root.mid != None:
-                if key[0] == '*':
-                    for node in self.__wildcard_search(root.mid, key):
-                        yield node
-                elif key[0] == root.splitchar:
-                    for node in self.__wildcard_search(root.mid, key[1:]):
-                        yield node
-                else:
-                    yield None
     
     def __suffix_search(self, root, key):
         '''
